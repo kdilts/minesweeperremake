@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>Mine Sweeper</title>
+		<style>
+			h1 { text-align:center; }
+			body { background-color: grey; }
+			p {
+				text-align: center;
+			}
+			div {
+				border:2px black solid;
+				margin-left:auto;
+				margin-right:auto;
+				width:600px;
+				height:600px;
+			}
+		</style>
+		<script type="text/javascript">
+			var gameBoard;
+			var resetButton;
+			var boardWidth = 20;
+			var boardHeight = 20;
+			var tileWidth = 600/boardWidth;
+			var tileHeight = 600/boardHeight;
+			var gridMines = [];
+			var gridVisible = [];
+			var gridMarked = [];
+			var gfx;
+
+			var mx = -1; var my = -1;
+			var playing = true;
+
+			window.onload = function(){
+				gameBoard = document.getElementById("board");
+
+				resetButton = document.getElementById("resetButton");
+				resetButton.onclick = function(){ init(); };
+
+				init();
+
+				setInterval(render, 1000/60);
+			};
+
+			init = function(){
+				playing = true;
+
+				// get render context
+				gfx = gameBoard.getContext('2d');
+				gameBoard.width = 600;
+				gameBoard.height = 600;
+
+				// add mouselisteners
+				gameBoard.onmousemove = function(e){
+					mx = e.x; my = e.y;
+					if(!mx){ mx = e.clientX; my = e.clientY; }
+					// adjust for canvas offset
+					mx = mx - gameBoard.offsetLeft;
+					my = my - gameBoard.offsetTop;
+					// figure out which tile
+					mx = Math.floor(mx / tileWidth);
+					my = Math.floor(my / tileHeight);
+				};
+
+				gameBoard.onmousedown = function(e){
+					// left click
+					if(mx != -1 && my != -1 && playing && e.which == 1){
+						if(gridMines[mx][my]){ playing = false; } // clicked mine
+
+						getNeighbors(mx,my); // clicked regular tile
+
+						// else right click - toggle yellow marker color
+					}else if(mx != -1 && my != -1 && playing && e.which == 3){
+						if(!gridMarked[mx][my]){
+							gridMarked[mx][my] = true;
+						}else{
+							gridMarked[mx][my] = false;
+						}
+					}
+				};
+
+				// initialize board
+				for(var i = 0; i < boardWidth; i++){
+					gridMines[i] = [];
+					gridVisible[i] = [];
+					gridMarked[i] = [];
+					for(var j = 0; j < boardHeight; j++){
+						gridVisible[i][j] = -1;
+						gridMarked[i][j] = false;
+						var temp = Math.random();
+						if(temp < .8){
+							gridMines[i][j] = false;
+						}else{
+							gridMines[i][j] = true;
+						}
+					}
+				}
+			};
+
+			// count up how many neighboring squares contain mines
+			getNeighbors = function(x,y){
+				var up = y-1;
+				var dn = y+1;
+				var lft = x-1;
+				var rt = x+1;
+
+				var total = 0;
+
+				if(lft >= 0 && gridMines[lft][y]){ total++; }
+				if(lft >= 0 && up < boardHeight && gridMines[lft][up]){ total++; }
+				if(lft >= 0 && dn >= 0 && gridMines[lft][dn]){ total++; }
+
+				if(up < boardHeight && gridMines[x][up]){ total++; }
+				if(dn >= 0 && gridMines[x][dn]){ total++; }
+
+				if(rt < boardWidth && gridMines[rt][y]){ total++; }
+				if(rt < boardWidth && up < boardHeight && gridMines[rt][up]){ total++; }
+				if(rt < boardWidth && dn >= 0 && gridMines[rt][dn]){ total++; }
+
+				gridVisible[x][y] = total;
+
+				if(total == 0){ sweepZeros(x,y); }
+
+				//return total;
+			};
+
+			sweepZeros = function(x,y){
+				var up = y-1;
+				var dn = y+1;
+				var lft = x-1;
+				var rt = x+1;
+
+				if(lft >= 0 && !gridMines[lft][y]){
+					if(gridVisible[lft][y] == -1){
+						getNeighbors(lft,y);
+					}
+				}
+				if(lft >= 0 && up < boardHeight && !gridMines[lft][up]){
+					if(gridVisible[lft][up] == -1){
+						getNeighbors(lft,up);
+					}
+				}
+				if(lft >= 0 && dn >= 0 && !gridMines[lft][dn]){
+					if(gridVisible[lft][dn] == -1){
+						getNeighbors(lft,dn);
+					}
+				}
+
+				if(up < boardHeight && !gridMines[x][up]){
+					if(gridVisible[x][up] == -1){
+						getNeighbors(x,up);
+					}
+				}
+				if(dn >= 0 && !gridMines[x][dn]){
+					if(gridVisible[x][dn] == -1){
+						getNeighbors(x,dn);
+					}
+				}
+
+				if(rt < boardWidth && !gridMines[rt][y]){
+					if(gridVisible[rt][y] == -1){
+						getNeighbors(rt,y);
+					}
+				}
+				if(rt < boardWidth && up < boardHeight && !gridMines[rt][up]){
+					if(gridVisible[rt][up] == -1){
+						getNeighbors(rt,up);
+					}
+				}
+				if(rt < boardWidth && dn >= 0 && !gridMines[rt][dn]){
+					if(gridVisible[rt][dn] == -1){
+						getNeighbors(rt,dn);
+					}
+				}
+			};
+
+			render = function(){
+				// clear canvas
+				gfx.strokeStyle = gfx.fillStyle = 'grey';
+				gfx.fillRect(0,0,600,600);
+
+				// mouse highlight
+				if(mx !== -1 && my !== -1 && playing){
+					gfx.strokeStyle = gfx.fillStyle = 'blue';
+					gfx.fillRect(mx*tileWidth,my*tileHeight,tileWidth,tileHeight);
+				}
+
+				// display numbers and colors
+				gfx.font = "12px verdana";
+				for(var i = 0; i < boardWidth; i++){
+					for(var j = 0; j < boardHeight; j++){
+						if(gridVisible[i][j] != -1){ // if a square has been clicked
+							// select red if there is a mine, green otherwise
+							if(gridMines[i][j]){
+								gfx.strokeStyle = gfx.fillStyle = 'red';
+							}else{
+								gfx.strokeStyle = gfx.fillStyle = 'green';
+							}
+							gfx.fillRect(i*tileWidth,j*tileHeight,tileWidth,tileHeight);
+
+							// display adjacency number on revealed green tile
+							if(!gridMines[i][j]){
+								gfx.strokeStyle = gfx.fillStyle = 'black';
+								gfx.fillText(''+gridVisible[i][j], i*tileWidth+tileWidth/2, j*tileHeight+tileHeight/2);
+							}
+						}else{ // check for marked tiles and make them yellow
+							if(gridMarked[i][j]){
+								gfx.strokeStyle = gfx.fillStyle = 'yellow';
+								gfx.fillRect(i*tileWidth,j*tileHeight,tileWidth,tileHeight);
+							}
+						}
+
+						// show all mines if player has lost
+						if(!playing && gridMines[i][j]){
+							gfx.strokeStyle = gfx.fillStyle = 'red';
+							gfx.fillRect(i*tileWidth,j*tileHeight,tileWidth,tileHeight);
+						}
+					}
+				}
+
+				// grid lines
+				gfx.strokeStyle = gfx.fillStyle = 'black';
+				for(var i = 1; i < 600/tileWidth; i++){ // vertical
+					gfx.beginPath();
+					gfx.moveTo(i*tileWidth,0);
+					gfx.lineTo(i*tileWidth,600);
+					gfx.stroke();
+				}
+
+				for(var i = 1; i < 600/tileHeight; i++){ // horizontal
+					gfx.beginPath();
+					gfx.moveTo(0,i*tileHeight);
+					gfx.lineTo(600,i*tileHeight);
+					gfx.stroke();
+				}
+			}
+		</script>
+	</head>
+	<body oncontextmenu="return false;">
+		<h1>Mine Sweeper</h1>
+		<div>
+			<canvas id="board" />
+		</div>
+		<p>
+			<input type="button" value="Reset" id="resetButton"/>
+		</p>
+	</body>
+</html>
